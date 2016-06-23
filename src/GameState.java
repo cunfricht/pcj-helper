@@ -4,7 +4,7 @@ public class GameState {
     public static long lastID;
     public final long stateID;
     public final long cameFromState;
-    public final int cardPlayed; // 0 represents wild - either joker or start of game
+    public int cardPlayed; // 0 represents wild - either joker or start of game
     public final int colPlayed; // column the card was played in
     public final ArrayList<ArrayList<Integer>> board;
 
@@ -136,5 +136,9 @@ public class GameState {
             }
             System.out.println();
         }
+    }
+
+    public void drawCard(int cardVal) {
+        this.cardPlayed = cardVal;
     }
 }

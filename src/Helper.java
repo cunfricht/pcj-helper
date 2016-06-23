@@ -22,6 +22,34 @@ public class Helper {
         }
     }
 
+    public static int cardStrToVal(String val) {
+        int cardVal;
+        if (isInteger(val)) {
+            cardVal = Integer.parseInt(val);
+            if (cardVal < 2 || cardVal > 10) {
+                throw new IllegalArgumentException("Invalid card: " + val);
+            }
+        }
+        else {
+            if (val.equalsIgnoreCase("A")) {
+                cardVal = 1;
+            }
+            else if (val.equalsIgnoreCase("J")) {
+                cardVal = 11;
+            }
+            else if (val.equalsIgnoreCase("Q")) {
+                cardVal = 12;
+            }
+            else if (val.equalsIgnoreCase("K")) {
+                cardVal = 13;
+            }
+            else {
+                throw new IllegalArgumentException("Invalid card: " + val);
+            }
+        }
+        return cardVal;
+    }
+
     private static boolean isInteger(String expr) {
         try {
             Integer.parseInt(expr);
@@ -40,30 +68,7 @@ public class Helper {
         ArrayList<Integer> column = new ArrayList<Integer>(listOfCards.size());
 
         for (String card : listOfCards) {
-            if (isInteger(card)) {
-                int cardVal = Integer.parseInt(card);
-                if (cardVal < 2 || cardVal > 10) {
-                    throw new IllegalArgumentException("Invalid card: " + card);
-                }
-                column.add(cardVal);
-            }
-            else {
-                if (card.equalsIgnoreCase("A")) {
-                    column.add(1);
-                }
-                else if (card.equalsIgnoreCase("J")) {
-                    column.add(11);
-                }
-                else if (card.equalsIgnoreCase("Q")) {
-                    column.add(12);
-                }
-                else if (card.equalsIgnoreCase("K")) {
-                    column.add(13);
-                }
-                else {
-                    throw new IllegalArgumentException("Invalid card: " + card);
-                }
-            }
+            column.add(cardStrToVal(card));
         }
 
         return column;
@@ -122,58 +127,88 @@ public class Helper {
             }
         }
 
-        ArrayList<ArrayList<GameState>> statesByDepth = new ArrayList<>();
-        HashMap<Long, GameState> statesByID = new HashMap<>();
+        ArrayList<ArrayList<GameState>> statesByDepth;
+        HashMap<Long, GameState> statesByID;
 
-        ArrayList<GameState> workList = new ArrayList<>();
-
-
+        ArrayList<GameState> workList;
         initialState = new GameState(board);
-        System.out.println("Current state:");
-        initialState.printBoard();
 
-        System.out.println("Solving...");
+        do {
+            statesByDepth = new ArrayList<>();
+            statesByID = new HashMap<>();
+            workList = new ArrayList<>();
 
-        workList.add(initialState);
-        statesByID.put(0L, initialState);
+            long initialBoardID = initialState.stateID;
 
-        int curDepth = 0;
-        while (workList.size() > 0) {
-            ArrayList<GameState> newWorkList = new ArrayList<>();
-            statesByDepth.add(curDepth, new ArrayList<GameState>());
-            for (GameState next : workList) {
-                statesByDepth.get(curDepth).add(next);
-                ArrayList<Integer> colsToTry = next.playableCols();
-                for (Integer col : colsToTry) {
-                    GameState nextState = new GameState(next, col);
-                    newWorkList.add(nextState);
-                    statesByID.put(nextState.stateID, nextState);
+            System.out.println("Current state:");
+            initialState.printBoard();
+
+            System.out.println("Solving...");
+
+            workList.add(initialState);
+            statesByID.put(initialBoardID, initialState);
+
+            int curDepth = 0;
+            while (workList.size() > 0) {
+                ArrayList<GameState> newWorkList = new ArrayList<>();
+                statesByDepth.add(curDepth, new ArrayList<GameState>());
+                for (GameState next : workList) {
+                    statesByDepth.get(curDepth).add(next);
+                    ArrayList<Integer> colsToTry = next.playableCols();
+                    for (Integer col : colsToTry) {
+                        GameState nextState = new GameState(next, col);
+                        newWorkList.add(nextState);
+                        statesByID.put(nextState.stateID, nextState);
+                    }
+                }
+                curDepth = curDepth + 1;
+                workList = new ArrayList<>(newWorkList);
+            }
+
+            System.out.println("Solved. Max number of cards playable: " +
+                Integer.toString(curDepth - 1));
+            System.out.println("Cards to play:");
+            GameState endState = statesByDepth.get(statesByDepth.size() - 1).get(0);
+
+            GameState curState = endState;
+            long curID = curState.stateID;
+
+            String output = "";
+            while (curID > initialBoardID) {
+                String thisOutput = cardValToStr(curState.cardPlayed) + " in col " +
+                    (curState.colPlayed + 1);
+                curID = curState.cameFromState;
+                curState = statesByID.get(curID);
+                if (output == "") {
+                    thisOutput += ".";
+                } else {
+                    thisOutput += ", ";
+                }
+                output = thisOutput + output;
+            }
+            System.out.println("Play card " + output);
+            System.out.println();
+
+            System.out.print("Enter the next card on your stack, after drawing (x to quit): ");
+            boolean validNextCard = false;
+            while (!validNextCard) {
+                String nextCard = in.next();
+                try {
+                    int cardVal = cardStrToVal(nextCard);
+                    validNextCard = true;
+                    endState.drawCard(cardVal);
+                    initialState = endState;
+                }
+                catch (IllegalArgumentException e) {
+                    if (nextCard.equalsIgnoreCase("x")) {
+                        return;
+                    }
+                    else {
+                        System.out.println(e.getMessage());
+                        System.out.println("Valid card values are A 2-10 Q J K");
+                    }
                 }
             }
-            curDepth = curDepth + 1;
-            workList = new ArrayList<>(newWorkList);
-        }
-
-        System.out.println("Solved. Max number of cards playable: " +
-            Integer.toString(curDepth - 1));
-        System.out.println("Cards to play:");
-        GameState curState = statesByDepth.get(statesByDepth.size() - 1).get(0);
-        long curID = curState.stateID;
-
-        String output = "";
-        while (curID > 0) {
-            String thisOutput = cardValToStr(curState.cardPlayed) + " in col " +
-                (curState.colPlayed + 1);
-            curID = curState.cameFromState;
-            curState = statesByID.get(curID);
-            if (output == "") {
-                thisOutput += ".";
-            }
-            else {
-                thisOutput += ", ";
-            }
-            output = thisOutput + output;
-        }
-        System.out.print("Play card " + output);
+        } while(true);
     }
 }
